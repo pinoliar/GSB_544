@@ -1,3 +1,4 @@
+https://github.com/pinoliar/GSB_544/tree/main/Week_0
 ---
 title: Quarto Computations
 echo: false
