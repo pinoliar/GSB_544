@@ -1,0 +1,124 @@
+---
+title: "Week 1: Introduction to Data Viz Using mtcars Dataset"
+format: html
+---
+
+# Data Visualization Using `plotnine`
+
+The Palmer Penguins dataset had a variety of column types with which to explore some nice visualizations. The `mtcars` dataset is another popular dataset for doing some simple data work, but does not contain the same types of variables.
+
+Run the following code to load the `mtcars` dataset and explore the observations and variables contained within. To learn more about this dataset check out [this site](https://stat.ethz.ch/R-manual/R-devel/library/datasets/html/mtcars.html)
+
+```{python}
+import statsmodels.api as sm
+import pandas as pd
+
+mtcars = sm.datasets.get_rdataset("mtcars", "datasets", cache=True).data
+df = pd.DataFrame(mtcars)
+```
+
+```{python}
+df.describe()
+```
+
+The statement "the `mtcars` dataset does not contain the same types of variables as the penguins dataset" is a little true and a little false. There are no variables that contain text values, BUT there are variables that it makes sense to consider categorical variables. In most situations, it makes sense to treat the values of categorical variables as text values instead of numeric values.
+
+Use the `astype()` method to convert the categorical variables of the `mtcars` (df) dataset to have text values in the code chunk below. We've done one for you!
+
+```{python}
+df["am"] = df["am"].astype(str)
+
+df["vs"] = df["vs"].astype(str)
+
+df["cyl"] = df["cyl"].astype(str)
+```
+
+If you print out your new dataset, is it clear that the variables have been converted to text values? If so, how can you tell?
+
+It should also be clear by how `plotnine` treats these variables.
+
+1. Create side-by-side boxplots of the `mpg` variable by the different values of the `am` variable. What happens if you convert the `am` variable back to float values and then try to create this same plot? Explain the differences between the two plots.
+
+2. Create overlaid histograms of the `hp` variable for the different values of the `cyl` variable. What happens if you convert the `cyl` variable back to float values and then try to create this same plot? Explain the differences between the two plots.
+
+```{python}
+import plotnine as p9
+(p9.ggplot(df,
+p9.aes(
+  x = "am",
+  y = "mpg",
+  ))
++ p9.geom_boxplot()
+)
+```
+
+```{python}
+df["am"] = df["am"].astype(float)
+(p9.ggplot(df,
+p9.aes(
+  x = "am",
+  y = "mpg",
+  ))
++ p9.geom_boxplot()
+)
+```
+
+When `am` is a string, the plot is two separate boxplots and when `am` is a float, the plot is one boxplot. The first plot creates separate groups for transmission types, allowing for comparing their mpg distributions. The second plot combines all cars into a single distribution, losing the ability to compare between transmission types.
+
+```{python}
+(p9.ggplot(df,
+p9.aes(
+  x = "hp",
+  fill = "cyl"
+))
++ p9.geom_histogram()
+)
+```
+
+```{python}
+df["cyl"] = df["cyl"].astype(float)
+(p9.ggplot(df,
+p9.aes(
+  x = "hp",
+  fill = "cyl"
+))
++ p9.geom_histogram()
+)
+```
+
+When `cyl` is a string, the plot shows separate colors for each cylinder count and when `cyl` is a float, the plot shows as one gray color combining all cylinder counts. The first plot creates separate colors for cylinder counts, allowing to see horsepower distributions for each cylinder count. The second plot combines all cylinder counts into a single gray color, losing the ability to see horsepower by cylinder count.
+
+Some of these variables, like the `cyl` variable, have numeric values that actually make sense as numbers (i.e. the number of cylinders in the engine). However, it doesn't make the most sense to "do math" with this type of variable (e.g. take averages and such) because there are so few different value this can take on AND they're an explicit choice made by the car manufacturer. So, it makes more sense to treat the `cyl` variable as a categorical variable despite it having numeric values.
+
+You will need to keep these kinds of nuances about data in mind as you work with an increasing variety and richness of data, and do more complex things with them.
+
+Choose 3 new `geometries` from the [data-to-viz website](https://www.data-to-viz.com/) for graphs that you'd like to explore using the `mtcars` dataset, and then create those graphs!
+
+```{python}
+(p9.ggplot(df,
+p9.aes(
+  x = "gear"
+))
++p9.geom_bar()
+)
+```
+
+```{python}
+(p9.ggplot(df,
+p9.aes(
+  x = "wt",
+  y = "mpg"
+))
++ p9.geom_point()
+)
+```
+
+```{python}
+(p9.ggplot(df,
+p9.aes(
+  x = "qsec",
+  y = "hp",
+))
++ p9.geom_line()
+)
+```
