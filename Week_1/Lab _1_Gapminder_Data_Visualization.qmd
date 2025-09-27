@@ -1,38 +1,158 @@
 ---
 title: "Lab 1: Gapminder Data Visualization"
 format: html
+embed-resources: true
 ---
 
+# Task 1
+
+x: Income
+y: Life Expectancy
+size: Population
+color: World Region
 
 ```{python}
+#| echo: true
 import pandas as pd
 import numpy as np
 import plotnine as p9
 df_2010 = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q1data.csv")
-df_1997 = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q2data.csv")
-df_2001 = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q3data.csv")
-
+df_2010 = df_2010.dropna(subset="four_regions")
 (p9.ggplot(df_2010,
 p9.aes(
   x = "income",
   y = "life_exp",
   size = "population",
-  color = "four_regions"
+  fill = "four_regions"
 ))
 + p9.geom_point()
 + p9.scale_x_log10(breaks=[500, 1000, 2000, 4000, 8000, 16000, 32000, 64000], labels=['500', '1000', '2000', '4000', '8000', '16k', '32k', '64k'], limits=[0,128000])
 + p9.scale_y_continuous(limits=(20, 90), breaks=range(20, 91, 10))
-+ p9.scale_color_manual({"americas": "#7ED321", "africa": "#2DC5F4", "europe": "#F8E71C", "asia": "#FF6F8C"})
+# Used AI for color HEX codes
++ p9.scale_fill_manual({"americas": "#7ED321", "africa": "#2DC5F4", "europe": "#F8E71C", "asia": "#FF6F8C"})
 + p9.scale_size_continuous(range=(0.5, 20))
-+ p9.annotate("text", x=1000, y=90, label="INCOME LEVEL 1", ha="center")
-+ p9.annotate("text", x=4500, y=90, label="LEVEL 2", ha="center")  
-+ p9.annotate("text", x=18000, y=90, label="LEVEL 3", ha="center")
-+ p9.annotate("text", x=50000, y=90, label="LEVEL 4", ha="center")
++ p9.annotate("text", x=1000, y=90, label="INCOME LEVEL 1", ha="left", size = 7.5)
++ p9.annotate("text", x=3000, y=90, label="◆", ha="left", size = 7.5)
++ p9.annotate("text", x=4000, y=90, label="LEVEL 2", ha="left", size = 7.5)
++ p9.annotate("text", x=8000, y=90, label="◆", ha="left", size = 7.5)
++ p9.annotate("text", x=16000, y=90, label="LEVEL 3", ha="right", size = 7.5)
++ p9.annotate("text", x=24000, y=90, label="◆", ha="left", size = 7.5)
++ p9.annotate("text", x=32000, y=90, label="LEVEL 4", ha="left", size = 7.5)
++ p9.annotate("text", x=5000, y=55, label="2010", size=150, alpha=0.1, color="gray")
 + p9.labs(
        x = "Income",
        y = "Life expectancy")
 + p9.theme_minimal()
 + p9.theme(legend_position="none")
 + p9.theme(figure_size=(12,6))
+)
+```
+
+geom_bar() could also be used here. geom_bar() is below and isn't the best because it only shows life expectancy by region and loses income and population information.
+
+```{python}
+#| echo: true
+(p9.ggplot(df_2010,
+    p9.aes(
+        x="four_regions",
+        y="life_exp"
+    ))
++ p9.geom_bar(stat = "summary")
+)
+```
+
+# Task 2
+
+x: Exports
+y: Imports
+size: Energy Use
+color: World Region
+
+```{python}
+#| echo: true
+df_1997 = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q2data.csv")
+df_1997 = df_1997.dropna(subset="four_regions")
+df_1997['energy'] = df_1997['energy'].replace(r'k$', '000', regex=True).astype(float)
+(p9.ggplot(df_1997,
+    p9.aes(
+        x = "exports",
+        y = "imports", 
+        size = "energy",
+        fill = "four_regions"
+    ))
++ p9.geom_point()
++ p9.scale_x_continuous(breaks=[20, 40, 60, 80, 100, 120, 140, 160, 180, 200, 220], labels=['20', '40', '60', '80', '100','120', '140', '160', '180', '200', '220'], limits=(0, 240))
++ p9.scale_y_continuous(breaks=[50, 100, 150, 200, 250, 300, 350, 400], labels=['50', '100', '150', '200', '250', '300', '350', '400'], limits=(0, 450))
+# Used AI for color HEX codes
++ p9.scale_fill_manual({"americas": "#7ED321", "africa": "#2DC5F4", "europe": "#F8E71C", "asia": "#FF6F8C"})
++ p9.scale_size_continuous(range=(0.5, 20))
++ p9.annotate("text", x=120, y=200, label="1997", size=150, alpha=0.1, color="gray")
++ p9.labs(
+    x = "Exports (\% of GDP)",
+    y = "Imports (\% of GDP)")
++ p9.theme_minimal()
++ p9.theme(legend_position="none")
++ p9.theme(figure_size=(12,6))
+)
+```
+
+geom_histogram() could also be used here. geom_histogram() is below and isn't the best because it only shows exports and loses import, energy, and region information.
+
+```{python}
+#| echo: true
+(p9.ggplot(df_1997,
+    p9.aes(
+        x="exports",
+    ))
++ p9.geom_histogram()
+)
+```
+
+# Task 3
+
+x: Individuals using the Internet
+y: GDP/capita
+size: Income
+color: World Region
+
+```{python}
+#| echo: true
+df_2001 = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q3data.csv")
+df_2001 = df_2001.dropna(subset="four_regions")
+
+(p9.ggplot(df_2001,
+    p9.aes(
+        x = "internet_users",
+        y = "gdp",
+        size = "income", 
+        fill = "four_regions"
+    ))
++ p9.geom_point()
++ p9.scale_x_continuous(breaks=[10, 20, 30, 40, 50, 60, 70, 80, 90], limits=(0, 100))
++ p9.scale_y_log10(breaks=[200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000], labels=['200', '500', '1000', '2000', '5000', '10k', '20k', '50k', '100k'], limits=(100, 200000))
+# Used AI for color HEX codes
++ p9.scale_fill_manual({"americas": "#7ED321", "africa": "#2DC5F4", "europe": "#F8E71C", "asia": "#FF6F8C"})
++ p9.scale_size_continuous(range=(0.5, 20))
++ p9.annotate("text", x=45, y=2000, label="2001", size=150, alpha=0.1, color="gray")
++ p9.labs(
+    x = "Individuals using the Internet",
+    y = "GDP/capita")
++ p9.theme_minimal()
++ p9.theme(legend_position="none")
++ p9.theme(figure_size=(12,6))
+)
+```
+
+geom_boxplot() could also be used here. geom_boxplot() is below and isn't the best because it only shows GDP by region and loses internet usage and income information.
+
+```{python}
+#| echo: true
+(p9.ggplot(df_2001,
+    p9.aes(
+        x = "four_regions",
+        y = "gdp",
+        fill = "four_regions"
+    ))
++ p9.geom_boxplot()
 )
 ```
