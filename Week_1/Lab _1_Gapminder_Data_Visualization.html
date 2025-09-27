@@ -2195,10 +2195,11 @@ vertical-align: -.125em;
 </header>
 
 
+<p><a href="https://github.com/pinoliar/GSB_544">GitHub Repository</a></p>
 <section id="task-1" class="level1">
 <h1>Task 1</h1>
 <p>x: Income y: Life Expectancy size: Population color: World Region</p>
-<div id="8203c185" class="cell" data-execution_count="1">
+<div id="ca78551b" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> plotnine <span class="im">as</span> p9</span>
@@ -2246,7 +2247,7 @@ vertical-align: -.125em;
 </div>
 </div>
 <p>geom_bar() could also be used here. geom_bar() is below and isn’t the best because it only shows life expectancy by region and loses income and population information.</p>
-<div id="2ad62e23" class="cell" data-execution_count="2">
+<div id="af085a83" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>(p9.ggplot(df_2010,</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    p9.aes(</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span><span class="st">&quot;four_regions&quot;</span>,</span>
@@ -2266,7 +2267,7 @@ vertical-align: -.125em;
 <section id="task-2" class="level1">
 <h1>Task 2</h1>
 <p>x: Exports y: Imports size: Energy Use color: World Region</p>
-<div id="646df3ac" class="cell" data-execution_count="3">
+<div id="83e4fb03" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>df_1997 <span class="op">=</span> pd.read_csv(<span class="st">&quot;/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q2data.csv&quot;</span>)</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>df_1997 <span class="op">=</span> df_1997.dropna(subset<span class="op">=</span><span class="st">&quot;four_regions&quot;</span>)</span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>df_1997[<span class="st">&#39;energy&#39;</span>] <span class="op">=</span> df_1997[<span class="st">&#39;energy&#39;</span>].replace(<span class="vs">r&#39;k</span><span class="dv">$</span><span class="vs">&#39;</span>, <span class="st">&#39;000&#39;</span>, regex<span class="op">=</span><span class="va">True</span>).astype(<span class="bu">float</span>)</span>
@@ -2303,7 +2304,7 @@ vertical-align: -.125em;
 </div>
 </div>
 <p>geom_histogram() could also be used here. geom_histogram() is below and isn’t the best because it only shows exports and loses import, energy, and region information.</p>
-<div id="9bfe89b5" class="cell" data-execution_count="4">
+<div id="f325f522" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>(p9.ggplot(df_1997,</span>
 <span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>    p9.aes(</span>
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>        x<span class="op">=</span><span class="st">&quot;exports&quot;</span>,</span>
@@ -2326,7 +2327,7 @@ vertical-align: -.125em;
 <section id="task-3" class="level1">
 <h1>Task 3</h1>
 <p>x: Individuals using the Internet y: GDP/capita size: Income color: World Region</p>
-<div id="af94e3a1" class="cell" data-execution_count="5">
+<div id="2ddbbe6b" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>df_2001 <span class="op">=</span> pd.read_csv(<span class="st">&quot;/Users/pinoliara/Downloads/GSB_544/Week_1/Data/q3data.csv&quot;</span>)</span>
 <span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>df_2001 <span class="op">=</span> df_2001.dropna(subset<span class="op">=</span><span class="st">&quot;four_regions&quot;</span>)</span>
 <span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
@@ -2363,7 +2364,7 @@ vertical-align: -.125em;
 </div>
 </div>
 <p>geom_boxplot() could also be used here. geom_boxplot() is below and isn’t the best because it only shows GDP by region and loses internet usage and income information.</p>
-<div id="6b4c2b62" class="cell" data-execution_count="6">
+<div id="1421083a" class="cell" data-execution_count="6">
 <div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>(p9.ggplot(df_2001,</span>
 <span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    p9.aes(</span>
 <span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> <span class="st">&quot;four_regions&quot;</span>,</span>
@@ -2473,6 +2474,11 @@ vertical-align: -.125em;
           if (link.dataset.originalHref !== undefined) {
             link.href = link.dataset.originalHref;
           }
+            // target, if specified
+            link.setAttribute("target", "_blank");
+            if (link.getAttribute("rel") === null) {
+              link.setAttribute("rel", "noopener");
+            }
         }
       }
     function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {

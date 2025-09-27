@@ -2,7 +2,10 @@
 title: "Lab 1: Gapminder Data Visualization"
 format: html
 embed-resources: true
+link-external-newwindow: true
 ---
+
+[GitHub Repository](https://github.com/pinoliar/GSB_544)
 
 # Task 1
 
