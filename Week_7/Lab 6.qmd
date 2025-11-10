@@ -1,0 +1,489 @@
+---
+title: "Lab 6"
+format: html
+embed-resources: true
+link-external-newwindow: true
+---
+
+[GitHub Repository](https://github.com/pinoliar/GSB_544)
+
+```{python}
+import pandas as pd
+import numpy as np
+from sklearn.pipeline import Pipeline
+from sklearn.compose import make_column_selector, ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, PolynomialFeatures
+from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.metrics import r2_score
+df = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_7/Hitters.csv")
+```
+
+```{python}
+df.isnull().sum()
+df = df.dropna(subset=["Salary"])
+df
+```
+
+```{python}
+df.duplicated().sum()
+```
+
+Part I: Different Model Specs
+
+A. Regression without regularization
+
+1. Create a pipeline that includes all the columns as predictors for Salary, and performs ordinary linear regression
+```{python}
+X = df.drop("Salary", axis=1)
+y = df["Salary"]
+
+ct = ColumnTransformer(
+    [
+        ("dummify",
+         OneHotEncoder(sparse_output=False, handle_unknown="ignore"),
+         make_column_selector(dtype_include=object)),
+        ("standardize",
+         StandardScaler(),
+         make_column_selector(dtype_include=np.number))
+    ],
+    remainder="passthrough"
+)
+
+lr_pipeline = Pipeline([
+    ("preprocessing", ct),
+    ("linear_regression", LinearRegression())
+])
+```
+
+2. Fit this pipeline to the full dataset, and interpret a few of the most important coefficients.
+```{python}
+lr_pipeline_fittedI = lr_pipeline.fit(X, y)
+lr_pipeline_fittedI["linear_regression"].coef_
+
+feature_names = lr_pipeline_fittedI.named_steps["preprocessing"].get_feature_names_out()
+coef_df = pd.DataFrame({
+    "feature": feature_names,
+    "coefficient": lr_pipeline_fittedI["linear_regression"].coef_,
+    "abs_coefficient": np.abs(lr_pipeline_fittedI["linear_regression"].coef_)
+}).sort_values("abs_coefficient", ascending=False)
+coef_df
+```
+
+CRuns: For every additional career run scored, a player's expected salary increases by approximately $481 thousand.
+CAtBat: For every additional career at-bat, a player's expected salary increases by approximately $391 thousand.
+Hits: For every additional hit, a player's expected salary increases by approximately $338 thousand.
+
+3. Use cross-validation to estimate the MSE you would expect if you used this pipeline to predict 1989 salaries.
+```{python}
+lr_scoresI = cross_val_score(lr_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+lr_scoresI.mean()
+```
+
+B. Ridge regression
+
+1. Create a pipeline that includes all the columns as predictors for Salary, and performs ordinary ridge regression
+```{python}
+ridge_pipeline = Pipeline([
+    ("preprocessing", ct),
+    ("ridge_regression", Ridge(alpha=1))
+])
+```
+
+2. Use cross-validation to tune the λ hyperparameter.
+```{python}
+ridge_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("ridge_regression", Ridge())]
+).set_output(transform="pandas")
+
+alphas = {"ridge_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+
+gscv = GridSearchCV(ridge_pipeline, param_grid=alphas, cv = 5, scoring="neg_mean_squared_error")
+
+gscv_fitted_ridgeI = gscv.fit(X, y)
+```
+
+3. Fit the pipeline with your chosen λ to the full dataset, and interpret a few of the most important coefficients.
+```{python}
+ridge_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("ridge_regression", Ridge(alpha=gscv_fitted_ridgeI.best_params_["ridge_regression__alpha"]))]
+  )
+ridge_pipeline_fittedI = ridge_pipeline.fit(X, y)
+ridge_pipeline_fittedI["ridge_regression"].coef_
+
+feature_names = ridge_pipeline_fittedI.named_steps["preprocessing"].get_feature_names_out()
+coef_df = pd.DataFrame({
+    "feature": feature_names,
+    "coefficient": ridge_pipeline_fittedI["ridge_regression"].coef_,
+    "abs_coefficient": np.abs(ridge_pipeline_fittedI["ridge_regression"].coef_)
+}).sort_values("abs_coefficient", ascending=False)
+coef_df
+```
+
+CRuns: For every additional career run scored, a player's expected salary increases by approximately $320 thousand.
+Hits: For every additional hit, a player's expected salary increases by approximately $297 thousand.
+CAtBat: For every additional career at-bat, a player's expected salary increases by approximately $271 thousand.
+
+4. Report the MSE you would expect if you used this pipeline to predict 1989 salaries.
+```{python}
+ridge_scoresI = cross_val_score(ridge_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+ridge_scoresI.mean()
+```
+
+C. Lasso Regression
+
+1. Create a pipeline that includes all the columns as predictors for Salary, and performs ordinary ridge regression
+```{python}
+lasso_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("lasso_regression", Lasso(alpha=1))]
+)
+```
+
+2. Use cross-validation to tune the λ hyperparameter.
+```{python}
+lasso_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("lasso_regression", Lasso())]
+).set_output(transform="pandas")
+
+alphas = {"lasso_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+
+gscv = GridSearchCV(lasso_pipeline, param_grid=alphas, cv = 5, scoring="neg_mean_squared_error")
+
+gscv_fitted_lassoI = gscv.fit(X, y)
+```
+
+3. Fit the pipeline with your chosen λ to the full dataset, and interpret a few of the most important coefficients.
+```{python}
+lasso_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("lasso_regression", Lasso(alpha=gscv_fitted_lassoI.best_params_["lasso_regression__alpha"]))]
+)
+lasso_pipeline_fittedI = lasso_pipeline.fit(X, y)
+lasso_pipeline_fittedI["lasso_regression"].coef_
+
+feature_names = lasso_pipeline_fittedI.named_steps["preprocessing"].get_feature_names_out()
+coef_df = pd.DataFrame({
+    "feature": feature_names,
+    "coefficient": lasso_pipeline_fittedI["lasso_regression"].coef_,
+    "abs_coefficient": np.abs(lasso_pipeline_fittedI["lasso_regression"].coef_)
+}).sort_values("abs_coefficient", ascending=False)
+coef_df
+```
+
+CRuns: For every additional career run scored, a player's expected salary increases by approximately $376 thousand.
+Hits: For every additional hit, a player's expected salary increases by approximately $304 thousand.
+AtBat: For every additional at-bat, a player's expected salary increases by approximately $282 thousand.
+
+4. Report the MSE you would expect if you used this pipeline to predict 1989 salaries.
+```{python}
+lasso_scoresI = cross_val_score(lasso_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+lasso_scoresI.mean()
+```
+
+D. Elastic Net
+
+1. Create a pipeline that includes all the columns as predictors for Salary, and performs ordinary ridge regression
+```{python}
+elastic_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("elastic_net", ElasticNet(alpha=1, l1_ratio=0.5))]
+)
+```
+
+2. Use cross-validation to tune the λ and α hyperparameter.
+```{python}
+param_grid = {
+  "elastic_net__alpha": [1, 10, 100],
+  "elastic_net__l1_ratio": np.arange(0.0, 1.2, 0.2),
+  }
+
+gscv_elastic = GridSearchCV(elastic_pipeline, param_grid = param_grid, cv = 5, scoring = "neg_mean_squared_error")
+
+elastic_pipeline_fitted = gscv_elastic.fit(X, y)
+```
+
+3. Fit the pipeline with your chosen hyperparameters to the full dataset, and interpret a few of the most important coefficients.
+```{python}
+elastic_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("elastic_net", ElasticNet(alpha = elastic_pipeline_fitted.best_params_["elastic_net__alpha"], l1_ratio = elastic_pipeline_fitted.best_params_["elastic_net__l1_ratio"]))]
+  )
+elastic_pipeline_fittedI = elastic_pipeline.fit(X, y)
+elastic_pipeline_fittedI["elastic_net"].coef_
+feature_names = elastic_pipeline_fittedI.named_steps["preprocessing"].get_feature_names_out()
+coef_df = pd.DataFrame({
+    "feature": feature_names,
+    "coefficient": elastic_pipeline_fittedI["elastic_net"].coef_,
+    "abs_coefficient": np.abs(elastic_pipeline_fittedI["elastic_net"].coef_)
+}).sort_values("abs_coefficient", ascending=False)
+coef_df
+
+```
+
+CRuns: For every additional career run scored, a player's expected salary increases by approximately $376 thousand.
+Hits: For every additional hit, a player's expected salary increases by approximately $304 thousand.
+AtBat: For every additional career at-bat, a player's expected salary increases by approximately $282 thousand.
+
+4. Report the MSE you would expect if you used this pipeline to predict 1989 salaries.
+```{python}
+elastic_scoresI = cross_val_score(elastic_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+elastic_scoresI.mean()
+```
+
+Part II. Variable Selection
+
+Based on the above results, decide on:
+Which numeric variable is most important
+Which five numeric variables are most important
+Which categorical variable is most important
+
+For each of the four model specifications, compare the following possible feature sets:
+
+1. Using only the one best numeric variable.
+```{python}
+X = df[["CRuns"]]
+
+lr_pipeline = Pipeline([
+    ("preprocessing", ct),
+    ("linear_regression", LinearRegression())
+])
+lr_pipeline_fittedII1 = lr_pipeline.fit(X, y)
+lr_scoresII1 = cross_val_score(lr_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+alphas = {"ridge_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+gscv = GridSearchCV(ridge_pipeline, param_grid=alphas, cv=5, scoring="neg_mean_squared_error")
+gscv_fitted_ridgeII1 = gscv.fit(X, y)
+ridge_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("ridge_regression", Ridge(alpha=gscv_fitted_ridgeII1.best_params_["ridge_regression__alpha"]))]
+)
+ridge_pipeline_fittedII1 = ridge_pipeline.fit(X, y)
+ridge_scoresII1 = cross_val_score(ridge_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+alphas = {"lasso_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+gscv = GridSearchCV(lasso_pipeline, param_grid=alphas, cv=5, scoring="neg_mean_squared_error")
+gscv_fitted_lassoII1 = gscv.fit(X, y)
+lasso_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("lasso_regression", Lasso(alpha=gscv_fitted_lassoII1.best_params_["lasso_regression__alpha"]))]
+)
+lasso_pipeline_fittedII1 = lasso_pipeline.fit(X, y)
+lasso_scoresII1 = cross_val_score(lasso_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+param_grid = {
+  "elastic_net__alpha": [1, 10, 100],
+  "elastic_net__l1_ratio": np.arange(0.0, 1.2, 0.2),
+}
+gscv_elastic = GridSearchCV(elastic_pipeline, param_grid=param_grid, cv=5, scoring="neg_mean_squared_error")
+elastic_pipeline_fitted = gscv_elastic.fit(X, y)
+elastic_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("elastic_net", ElasticNet(alpha=elastic_pipeline_fitted.best_params_["elastic_net__alpha"], l1_ratio=elastic_pipeline_fitted.best_params_["elastic_net__l1_ratio"]))]
+)
+elastic_scoresII1 = cross_val_score(elastic_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+lr_scoresII1.mean(), ridge_scoresII1.mean(), lasso_scoresII1.mean(), elastic_scoresII1.mean()
+```
+
+2. Using only the five best variables.
+```{python}
+X = df[["CRuns", "Hits", "AtBat", "CAtBat", "CWalks"]]
+
+lr_pipeline = Pipeline([
+    ("preprocessing", ct),
+    ("linear_regression", LinearRegression())
+])
+lr_pipeline_fittedII2 = lr_pipeline.fit(X, y)
+lr_scoresII2 = cross_val_score(lr_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+alphas = {"ridge_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+gscv = GridSearchCV(ridge_pipeline, param_grid=alphas, cv=5, scoring="neg_mean_squared_error")
+gscv_fitted_ridgeII2 = gscv.fit(X, y)
+ridge_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("ridge_regression", Ridge(alpha=gscv_fitted_ridgeII2.best_params_["ridge_regression__alpha"]))]
+)
+ridge_pipeline_fittedII2 = ridge_pipeline.fit(X, y)
+ridge_scoresII2 = cross_val_score(ridge_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+alphas = {"lasso_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+gscv = GridSearchCV(lasso_pipeline, param_grid=alphas, cv=5, scoring="neg_mean_squared_error")
+gscv_fitted_lassoII2 = gscv.fit(X, y)
+lasso_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("lasso_regression", Lasso(alpha=gscv_fitted_lassoII2.best_params_["lasso_regression__alpha"]))]
+)
+lasso_pipeline_fittedII2 = lasso_pipeline.fit(X, y)
+lasso_scoresII2 = cross_val_score(lasso_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+param_grid = {
+  "elastic_net__alpha": [1, 10, 100],
+  "elastic_net__l1_ratio": np.arange(0.0, 1.2, 0.2),
+}
+gscv_elastic = GridSearchCV(elastic_pipeline, param_grid=param_grid, cv=5, scoring="neg_mean_squared_error")
+elastic_pipeline_fitted = gscv_elastic.fit(X, y)
+elastic_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("elastic_net", ElasticNet(alpha=elastic_pipeline_fitted.best_params_["elastic_net__alpha"], l1_ratio=elastic_pipeline_fitted.best_params_["elastic_net__l1_ratio"]))]
+)
+elastic_scoresII2 = cross_val_score(elastic_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+lr_scoresII2.mean(), ridge_scoresII2.mean(), lasso_scoresII2.mean(), elastic_scoresII2.mean()
+```
+
+3. Using the five best numeric variables and their interactions with the one best categorical variable.
+```{python}
+cat_features = ["Division"]
+df = pd.get_dummies(df, columns=cat_features, drop_first=True)
+df["Division_W"] = df["Division_W"].map({True: 1, False: 0})
+df["CRuns_DivisionW"] = df["CRuns"] * df["Division_W"]
+df["Hits_DivisionW"] = df["Hits"] * df["Division_W"]
+df["AtBat_DivisionW"] = df["AtBat"] * df["Division_W"]
+df["CAtBat_DivisionW"] = df["CAtBat"] * df["Division_W"]
+df["CWalks_DivisionW"] = df["CWalks"] * df["Division_W"]
+X = df[["CRuns", "Hits", "AtBat", "CAtBat", "CWalks", "Division_W", "CRuns_DivisionW", "Hits_DivisionW", "AtBat_DivisionW", "CAtBat_DivisionW", "CWalks_DivisionW"]]
+
+lr_pipeline = Pipeline([
+    ("preprocessing", ct),
+    ("linear_regression", LinearRegression())
+])
+lr_pipeline_fittedII3 = lr_pipeline.fit(X, y)
+lr_scoresII3 = cross_val_score(lr_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+alphas = {"ridge_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+gscv = GridSearchCV(ridge_pipeline, param_grid=alphas, cv=5, scoring="neg_mean_squared_error")
+gscv_fitted_ridgeII3 = gscv.fit(X, y)
+ridge_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("ridge_regression", Ridge(alpha=gscv_fitted_ridgeII3.best_params_["ridge_regression__alpha"]))]
+)
+ridge_pipeline_fittedII3 = ridge_pipeline.fit(X, y)
+ridge_scoresII3 = cross_val_score(ridge_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+alphas = {"lasso_regression__alpha": np.array([100, 10, 1, 0.1, 0.01])}
+gscv = GridSearchCV(lasso_pipeline, param_grid=alphas, cv=5, scoring="neg_mean_squared_error")
+gscv_fitted_lassoII3 = gscv.fit(X, y)
+lasso_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("lasso_regression", Lasso(alpha=gscv_fitted_lassoII3.best_params_["lasso_regression__alpha"]))]
+)
+lasso_pipeline_fittedII3 = lasso_pipeline.fit(X, y)
+lasso_scoresII3 = cross_val_score(lasso_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+
+param_grid = {
+  "elastic_net__alpha": [1, 10, 100],
+  "elastic_net__l1_ratio": np.arange(0.0, 1.2, 0.2),
+}
+gscv_elastic = GridSearchCV(elastic_pipeline, param_grid=param_grid, cv=5, scoring="neg_mean_squared_error")
+elastic_pipeline_fitted = gscv_elastic.fit(X, y)
+elastic_pipeline = Pipeline(
+  [("preprocessing", ct),
+  ("elastic_net", ElasticNet(alpha=elastic_pipeline_fitted.best_params_["elastic_net__alpha"], l1_ratio=elastic_pipeline_fitted.best_params_["elastic_net__l1_ratio"]))]
+)
+elastic_scoresII3 = cross_val_score(elastic_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+elastic_scoresII3.mean()
+
+lr_scoresII3.mean(), ridge_scoresII3.mean(), lasso_scoresII3.mean(), elastic_scoresII3.mean()
+```
+
+Part III. Discussion
+
+A. Ridge
+
+Compare your Ridge models with your ordinary regression models. How did your coefficients compare? Why does this make sense?
+```{python}
+ridge_pipeline_fittedI["ridge_regression"].coef_, lr_pipeline_fittedI["linear_regression"].coef_
+```
+
+```{python}
+ridge_pipeline_fittedII1["ridge_regression"].coef_, lr_pipeline_fittedII1["linear_regression"].coef_
+```
+
+```{python}
+ridge_pipeline_fittedII2["ridge_regression"].coef_, lr_pipeline_fittedII2["linear_regression"].coef_
+```
+
+```{python}
+ridge_pipeline_fittedII3["ridge_regression"].coef_, lr_pipeline_fittedII3["linear_regression"].coef_
+```
+
+Ridge regression coefficients are smaller in magnitude than Linear Regression coefficients across all feature sets. This makes sense because ridge penalty shrinks coefficients toward zero proportionally.
+
+B. LASSO
+
+Compare your LASSO model in I with your three LASSO models in II. Did you get the same results? Why does this make sense? Did you get the same MSEs? Why does this make sense?
+
+```{python}
+gscv_fitted_lassoI.best_params_, gscv_fitted_lassoII1.best_params_, gscv_fitted_lassoII2.best_params_, gscv_fitted_lassoII3.best_params_
+```
+```{python}
+lasso_scoresI.mean(), lasso_scoresII1.mean(),  lasso_scoresII2.mean(),  lasso_scoresII3.mean()
+```
+
+No, the LASSO model in I isn't the same result with the three LASSO models in II. This makes sense because in I it includes all features while with the three LASSO models in II don't have as many features. No, I didn't get the same MSEs. This makes sense because each LASSO model using a different amount of features.
+
+C. Elastic Net
+
+Compare your MSEs for the Elastic Net models with those for the Ridge and LASSO models. Why does it make sense that Elastic Net always “wins”?
+```{python}
+elastic_scoresI.mean(), ridge_scoresI.mean(), lasso_scoresI.mean()
+```
+
+```{python}
+elastic_scoresII1.mean(), ridge_scoresII1.mean(), lasso_scoresII1.mean(), 
+```
+
+```{python}
+elastic_scoresII2.mean(), ridge_scoresII2.mean(), lasso_scoresII2.mean()
+```
+
+```{python}
+elastic_scoresII3.mean(), ridge_scoresII3.mean(), lasso_scoresII3.mean()
+```
+
+It makes sense that Elastic Net always “wins” because we tune λ and α values correctly which should result in lower MSE.
+
+Part IV: Final Model
+
+Fit your final best pipeline on the full dataset, and summarize your results in a few short sentences and a plot.
+```{python}
+X = df.drop("Salary", axis=1)
+y = df["Salary"]
+
+param_grid = {
+  "elastic_net__alpha": [1, 10, 100],
+  "elastic_net__l1_ratio": np.arange(0.0, 1.2, 0.2),
+}
+gscv_elastic = GridSearchCV(elastic_pipeline, param_grid=param_grid, cv=5, scoring="neg_mean_squared_error")
+elastic_pipeline_fitted = gscv_elastic.fit(X, y)
+
+elastic_pipeline_best = Pipeline([
+  ("preprocessing", ct),
+  ("elastic_net", ElasticNet(
+      alpha=elastic_pipeline_fitted.best_params_["elastic_net__alpha"], 
+      l1_ratio=elastic_pipeline_fitted.best_params_["elastic_net__l1_ratio"]
+  ))
+])
+
+elastic_pipeline_best.fit(X, y)
+elastic_scoreIV = cross_val_score(elastic_pipeline, X, y, cv=5, scoring="neg_mean_squared_error")
+elastic_scoreIV.mean()
+```
+
+The best model was Elastic Net using the five best numeric variables and their interactions with the one best categorical variable. The interaction terms between career statistics and division captured important regional market differences in how player performance translates to salary. While regularization shrinks some coefficients toward zero, this penalty prevents overfitting and leads to superior model performance.
+
+```{python}
+import plotnine as p9
+y_pred = elastic_pipeline_best.predict(X)
+y_true = y.values
+plot_df = pd.DataFrame({"y_pred": y_pred, "y_true": y_true})
+(
+p9.ggplot(plot_df, p9.aes(x="y_pred", y="y_true")) +
+    p9.geom_point() +
+    p9.theme_minimal()
+)
+```
