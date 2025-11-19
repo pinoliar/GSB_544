@@ -1,0 +1,355 @@
+---
+title: "Lab 7"
+format: html
+embed-resources: true
+link-external-newwindow: true
+---
+
+[GitHub Repository](https://github.com/pinoliar/GSB_544)
+
+```{python}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.preprocessing import StandardScaler
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve, make_scorer
+from sklearn.pipeline import Pipeline
+df = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_8/heart_attack.csv")
+```
+
+```{python}
+df.head()
+```
+
+```{python}
+df.describe()
+```
+
+```{python}
+df.info()
+```
+
+```{python}
+df.isnull().sum()
+```
+
+```{python}
+df.duplicated().sum()
+df = df.drop_duplicates()
+df
+```
+
+Part One: Fitting Models
+This section asks you to create a final best model for each of the model types studied this week. For each, you should:
+Find the best model based on ROC AUC for predicting the target variable.
+Report the (cross-validated!) ROC AUC metric.
+Fit the final model.
+Output a confusion matrix; that is, the counts of how many observations fell into each predicted class for each true class.
+(Where applicable) Interpret the coefficients and/or estimates produced by the model fit.
+You should certainly try multiple model pipelines to find the best model. You do not need to include the output for every attempted model, but you should describe all of the models explored. You should include any hyperparameter tuning steps in your writeup as well.
+```{python}
+X = df.drop("output", axis=1)
+y = df["output"]
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y)
+```
+
+Q1: KNN
+```{python}
+knn_param_grid = {
+    "knn__n_neighbors": [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 25, 30],
+    "knn__metric": ["euclidean", "manhattan"],
+    "knn__weights": ["uniform", "distance"]
+}
+
+knn_pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("knn", KNeighborsClassifier())
+])
+
+knn_grid = GridSearchCV(knn_pipeline, knn_param_grid, cv=5, scoring="roc_auc")
+knn_grid.fit(X_train, y_train)
+```
+
+```{python}
+knn_grid.best_params_
+best_knn = knn_grid.best_estimator_
+knn_cv_scores = cross_val_score(best_knn, X_train, y_train, cv=5, scoring="roc_auc")
+best_knn.fit(X_train, y_train)
+y_pred_knn = best_knn.predict(X_test)
+y_pred_proba_knn = best_knn.predict_proba(X_test)[:, 1]
+confusion_matrix(y_test, y_pred_knn)
+```
+
+Q2: Logistic Regression
+```{python}
+lr_param_grid = {
+    "lr__penalty": ["l1", "l2"],
+    "lr__C": [0.001, 0.01, 0.1, 1, 10, 100],
+    "lr__solver": ["liblinear"]
+}
+
+lr_pipeline = Pipeline([
+    ("scaler", StandardScaler()),
+    ("lr", LogisticRegression(max_iter=1000))
+])
+
+lr_grid = GridSearchCV(lr_pipeline, lr_param_grid, cv=5, scoring="roc_auc", n_jobs=-1)
+lr_grid.fit(X_train, y_train)
+```
+
+```{python}
+lr_grid.best_params_
+best_lr = lr_grid.best_estimator_
+lr_cv_scores = cross_val_score(best_lr, X_train, y_train, cv=5, scoring="roc_auc")
+best_lr.fit(X_train, y_train)
+y_pred_lr = best_lr.predict(X_test)
+y_pred_proba_lr = best_lr.predict_proba(X_test)[:, 1]
+confusion_matrix(y_test, y_pred_lr)
+```
+
+```{python}
+feature_names = X.columns
+coef_df = pd.DataFrame({
+    "feature": feature_names,
+    "coefficient": best_lr.named_steps["lr"].coef_[0]
+})
+coef_df
+```
+
+age: Higher age decreases heart attack risk
+sex: Being male decreases heart attack risk
+cp: Higher chest pain type increases heart attack risk
+trtbps: Higher resting blood pressure decreases heart attack risk
+chol: Higher cholesterol decreases heart attack risk
+restecg: Abnormal resting ECG increases heart attack risk
+thalach: Higher maximum heart rate increases heart attack risk
+
+Q3: Decision Tree
+```{python}
+dt_param_grid = {
+    "max_depth": [2, 3, 4, 5, 6, 7, 8, 10, 12, 15, None],
+    "min_samples_split": [2, 5, 10, 20],
+    "min_samples_leaf": [1, 2, 4, 8],
+    "criterion": ["gini", "entropy"]
+}
+
+dt = DecisionTreeClassifier()
+dt_grid = GridSearchCV(dt, dt_param_grid, cv=5, scoring="roc_auc")
+dt_grid.fit(X_train, y_train)
+```
+
+```{python}
+dt_grid.best_params_
+best_dt = dt_grid.best_estimator_
+dt_cv_scores = cross_val_score(best_dt, X_train, y_train, cv=5, scoring="roc_auc")
+best_dt.fit(X_train, y_train)
+y_pred_dt = best_dt.predict(X_test)
+y_pred_proba_dt = best_dt.predict_proba(X_test)[:, 1]
+confusion_matrix(y_test, y_pred_dt)
+```
+
+Q4: Interpretation
+Which predictors were most important to predicting heart attack risk?
+```{python}
+lr_importance = np.abs(best_lr.named_steps["lr"].coef_[0])
+lr_importance_normalized = lr_importance / lr_importance.sum()
+
+comparison_df = pd.DataFrame({
+    "Feature": X.columns,
+    "Logistic_Regression": lr_importance_normalized,
+    "Decision_Tree": best_dt.feature_importances_
+})
+comparison_df["Average"] = comparison_df[["Logistic_Regression", "Decision_Tree"]].mean(axis=1)
+comparison_df.sort_values("Average", ascending=False)
+```
+
+cp, sex, thalach
+
+Q5: ROC Curve
+Plot the ROC Curve for your three models above.
+```{python}
+fpr_knn, tpr_knn, thresholds_knn = roc_curve(y_test, y_pred_proba_knn)
+auc_knn = roc_auc_score(y_test, y_pred_proba_knn)
+
+fpr_lr, tpr_lr, thresholds_lr = roc_curve(y_test, y_pred_proba_lr)
+auc_lr = roc_auc_score(y_test, y_pred_proba_lr)
+
+fpr_dt, tpr_dt, thresholds_dt = roc_curve(y_test, y_pred_proba_dt)
+auc_dt = roc_auc_score(y_test, y_pred_proba_dt)
+
+auc_knn, auc_lr, auc_dt
+```
+
+```{python}
+pd.DataFrame({
+    "fpr": fpr_knn,
+    "tpr": tpr_knn
+}).plot.line(x="fpr", y="tpr")
+```
+
+```{python}
+pd.DataFrame({
+    "fpr": fpr_lr,
+    "tpr": tpr_lr
+}).plot.line(x="fpr", y="tpr")
+```
+
+```{python}
+pd.DataFrame({
+    "fpr": fpr_dt,
+    "tpr": tpr_dt
+}).plot.line(x="fpr", y="tpr")
+```
+
+Part Two: Metrics
+Consider the following metrics:
+True Positive Rate or Recall or Sensitivity = Of the observations that are truly Class A, how many were predicted to be Class A?
+Precision or Positive Predictive Value = Of all the observations classified as Class A, how many of them were truly from Class A?
+True Negative Rate or Specificity or Negative Predictive Value = Of all the observations classified as NOT Class A, how many were truly NOT Class A?
+Compute each of these metrics (cross-validated) for your three models (KNN, Logistic Regression, and Decision Tree) in Part One.
+```{python}
+specificity_scorer = make_scorer(lambda y_true, y_pred: confusion_matrix(y_true, y_pred)[0, 0] / (confusion_matrix(y_true, y_pred)[0, 0] + confusion_matrix(y_true, y_pred)[0, 1]))
+knn_recall = cross_val_score(best_knn, X_train, y_train, cv=5, scoring="recall")
+knn_precision = cross_val_score(best_knn, X_train, y_train, cv=5, scoring="precision")
+knn_specificity = cross_val_score(best_knn, X_train, y_train, cv=5, scoring=specificity_scorer)
+lr_recall = cross_val_score(best_lr, X_train, y_train, cv=5, scoring="recall")
+lr_precision = cross_val_score(best_lr, X_train, y_train, cv=5, scoring="precision")
+lr_specificity = cross_val_score(best_lr, X_train, y_train, cv=5, scoring=specificity_scorer)
+dt_recall = cross_val_score(best_dt, X_train, y_train, cv=5, scoring="recall")
+dt_precision = cross_val_score(best_dt, X_train, y_train, cv=5, scoring="precision")
+dt_specificity = cross_val_score(best_dt, X_train, y_train, cv=5, scoring=specificity_scorer)
+pd.DataFrame({
+    "Model": ["KNN", "Logistic Regression", "Decision Tree"],
+    "Recall": [knn_recall.mean(), lr_recall.mean(), dt_recall.mean()],
+    "Precision": [knn_precision.mean(), lr_precision.mean(), dt_precision.mean()],
+    "Specificity": [knn_specificity.mean(), lr_specificity.mean(), dt_specificity.mean()]
+})
+```
+
+Part Three: Discussion
+Suppose you have been hired by a hospital to create classification models for heart attack risk.
+The following questions give a possible scenario for why the hospital is interested in these models. For each one, discuss:
+Which metric(s) you would use for model selection and why.
+Which of your final models (Part One Q1-3) you would recommend to the hospital, and why.
+What score you should expect for your chosen metric(s) using your chosen model to predict future observations.
+
+Q1
+The hospital faces severe lawsuits if they deem a patient to be low risk, and that patient later experiences a heart attack.
+Recall because false positives are ok, but false negatives aren't 
+Logistic regression because it has the highest recall
+81%
+
+Q2
+The hospital is overfull, and wants to only use bed space for patients most in need of monitoring due to heart attack risk.
+Precision because it ensures that patients as high-risk truly are high-risk
+Decision tree because it has the highest precision
+82%
+
+Q3
+The hospital is studying root causes of heart attacks, and would like to understand which biological measures are associated with heart attack risk.
+Coefficients because it shows relationships between predictors and outcomes
+Logistic regression because it provides coefficients for each feature
+80%
+
+Q4
+The hospital is training a new batch of doctors, and they would like to compare the diagnoses of these doctors to the predictions given by the algorithm to measure the ability of new doctors to diagnose patients.
+ROC AUC because it discriminates between positive and negative cases
+Logistic Regression because it has the highest precision ROC AUC
+80%
+
+Part Four: Validation
+Before sharing the dataset with you, I set aside a random 10% of the observations to serve as a final validation set.
+Use each of your final models in Part One Q1-3, predict the target variable in the validation dataset.
+For each, output a confusion matrix, and report the ROC AUC, the precision, and the recall.
+Compare these values to the cross-validated estimates you reported in Part One and Part Two. Did our measure of model success turn out to be approximately correct for the validation data?
+```{python}
+df_val = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_8/heart_attack_validation.csv")
+X_val = df_val.drop("output", axis=1)
+y_val = df_val["output"]
+```
+
+```{python}
+y_pred_knn_val = best_knn.predict(X_val)
+y_pred_lr_val = best_lr.predict(X_val)
+y_pred_dt_val = best_dt.predict(X_val)
+```
+
+```{python}
+cm_knn_val = confusion_matrix(y_val, y_pred_knn_val)
+knn_recall_val = cm_knn_val[1, 1] / (cm_knn_val[1, 1] + cm_knn_val[1, 0])
+knn_precision_val = cm_knn_val[1, 1] / (cm_knn_val[1, 1] + cm_knn_val[0, 1])
+knn_specificity_val = cm_knn_val[0, 0] / (cm_knn_val[0, 0] + cm_knn_val[0, 1])
+cm_lr_val = confusion_matrix(y_val, y_pred_lr_val)
+lr_recall_val = cm_lr_val[1, 1] / (cm_lr_val[1, 1] + cm_lr_val[1, 0])
+lr_precision_val = cm_lr_val[1, 1] / (cm_lr_val[1, 1] + cm_lr_val[0, 1])
+lr_specificity_val = cm_lr_val[0, 0] / (cm_lr_val[0, 0] + cm_lr_val[0, 1])
+cm_dt_val = confusion_matrix(y_val, y_pred_dt_val)
+dt_recall_val = cm_dt_val[1, 1] / (cm_dt_val[1, 1] + cm_dt_val[1, 0])
+dt_precision_val = cm_dt_val[1, 1] / (cm_dt_val[1, 1] + cm_dt_val[0, 1])
+dt_specificity_val = cm_dt_val[0, 0] / (cm_dt_val[0, 0] + cm_dt_val[0, 1])
+pd.DataFrame({
+    "Model": ["KNN", "Logistic Regression", "Decision Tree"],
+    "Recall": [knn_recall_val, lr_recall_val, dt_recall_val],
+    "Precision": [knn_precision_val, lr_precision_val, dt_precision_val],
+    "Specificity": [knn_specificity_val, lr_specificity_val, dt_specificity_val]
+})
+```
+
+```{python}
+y_pred_proba_knn_val = best_knn.predict_proba(X_val)[:, 1]
+y_pred_proba_lr_val = best_lr.predict_proba(X_val)[:, 1]
+y_pred_proba_dt_val = best_dt.predict_proba(X_val)[:, 1]
+knn_auc_val = roc_auc_score(y_val, y_pred_proba_knn_val)
+lr_auc_val = roc_auc_score(y_val, y_pred_proba_lr_val)
+dt_auc_val = roc_auc_score(y_val, y_pred_proba_dt_val)
+```
+
+```{python}
+pd.DataFrame({
+    "Model": ["KNN", "Logistic Regression", "Decision Tree"],
+    "CV_ROC_AUC": [knn_cv_scores.mean(), lr_cv_scores.mean(), dt_cv_scores.mean()],
+    "Val_ROC_AUC": [knn_auc_val, lr_auc_val, dt_auc_val],
+    "CV_Recall": [knn_recall.mean(), lr_recall.mean(), dt_recall.mean()],
+    "Val_Recall": [knn_recall_val, lr_recall_val, dt_recall_val],
+    "CV_Precision": [knn_precision.mean(), lr_precision.mean(), dt_precision.mean()],
+    "Val_Precision": [knn_precision_val, lr_precision_val, dt_precision_val],
+    "CV_Specificity": [knn_specificity.mean(), lr_specificity.mean(), dt_specificity.mean()],
+    "Val_Specificity": [knn_specificity_val, lr_specificity_val, dt_specificity_val]
+})
+```
+
+Yes, the cross-validated estimates were approximately correct for the validation data
+
+Part Five: Cohen’s Kappa
+Another common metric used in classification is Cohen’s Kappa.
+Use online resources to research this measurement. Calculate it for the models from Part One, Q1-3, and discuss reasons or scenarios that would make us prefer to use this metric as our measure of model success. Do your conclusions from above change if you judge your models using Cohen’s Kappa instead? Does this make sense?
+```{python}
+cm_knn = confusion_matrix(y_test, y_pred_knn)
+total_knn = cm_knn.sum()
+observed_agreement_knn = (cm_knn[0, 0] + cm_knn[1, 1]) / total_knn
+expected_agreement_knn = ((cm_knn[0, 0] + cm_knn[0, 1]) * (cm_knn[0, 0] + cm_knn[1, 0]) + (cm_knn[1, 0] + cm_knn[1, 1]) * (cm_knn[0, 1] + cm_knn[1, 1])) / (total_knn ** 2)
+kappa_knn = (observed_agreement_knn - expected_agreement_knn) / (1 - expected_agreement_knn)
+cm_lr = confusion_matrix(y_test, y_pred_lr)
+total_lr = cm_lr.sum()
+observed_agreement_lr = (cm_lr[0, 0] + cm_lr[1, 1]) / total_lr
+expected_agreement_lr = ((cm_lr[0, 0] + cm_lr[0, 1]) * (cm_lr[0, 0] + cm_lr[1, 0]) + (cm_lr[1, 0] + cm_lr[1, 1]) * (cm_lr[0, 1] + cm_lr[1, 1])) / (total_lr ** 2)
+kappa_lr = (observed_agreement_lr - expected_agreement_lr) / (1 - expected_agreement_lr)
+cm_dt = confusion_matrix(y_test, y_pred_dt)
+total_dt = cm_dt.sum()
+observed_agreement_dt = (cm_dt[0, 0] + cm_dt[1, 1]) / total_dt
+expected_agreement_dt = ((cm_dt[0, 0] + cm_dt[0, 1]) * (cm_dt[0, 0] + cm_dt[1, 0]) + (cm_dt[1, 0] + cm_dt[1, 1]) * (cm_dt[0, 1] + cm_dt[1, 1])) / (total_dt ** 2)
+kappa_dt = (observed_agreement_dt - expected_agreement_dt) / (1 - expected_agreement_dt)
+pd.DataFrame({
+    "Model": ["KNN", "Logistic Regression", "Decision Tree"],
+    "Cohen_Kappa": [kappa_knn, kappa_lr, kappa_dt],
+    "ROC_AUC": [roc_auc_score(y_test, y_pred_proba_knn), 
+                roc_auc_score(y_test, y_pred_proba_lr), 
+                roc_auc_score(y_test, y_pred_proba_dt)]
+})
+```
+
+The conclusions from above change don't change. This makes sense because Cohen's Kappa and ROC AUC measure overall model quality but in different ways
