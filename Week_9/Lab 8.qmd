@@ -1,0 +1,376 @@
+---
+title: "Lab 8"
+format: html
+embed-resources: true
+link-external-newwindow: true
+---
+
+[GitHub Repository](https://github.com/pinoliar/GSB_544)
+
+```{python}
+import numpy as np
+import pandas as pd
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis, QuadraticDiscriminantAnalysis
+from sklearn.svm import SVC
+from sklearn.model_selection import GridSearchCV, cross_val_score
+from sklearn.metrics import confusion_matrix
+df = pd.read_csv("/Users/pinoliara/Downloads/GSB_544/Week_9/cannabis_full.csv")
+```
+
+Part One: Binary Classification
+Create a dataset that is limited only to the Sativa and Indica type cannabis strains.
+This section asks you to create a final best model for each of the four new model types studied this week: LDA, QDA, SVC, and SVM. For SVM, you may limit yourself to only the polynomial kernel.
+For each, you should:
+Choose a metric you will use to select your model, and briefly justify your choice. (Hint: There is no specific target category here, so this should not be a metric that only prioritizes one category.)
+Find the best model for predicting the Type variable. Don’t forget to tune any hyperparameters.
+Report the (cross-validated!) metric.
+Fit the final model.
+Output a confusion matrix.
+
+```{python}
+sativa_indica = df[(df["Type"] == "sativa") | (df["Type"] == "indica")].dropna()
+X = sativa_indica.drop(["Strain", "Type", "Rating", "Effects", "Flavor"], axis=1)
+y = sativa_indica["Type"]
+```
+
+Q1: LDA
+```{python}
+lda_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LinearDiscriminantAnalysis())
+])
+
+lda_cv_scores = cross_val_score(lda_model, X, y, cv=5, scoring="accuracy")
+lda_model.fit(X, y)
+lda_cm = confusion_matrix(y, lda_model.predict(X))
+lda_cm
+```
+
+Q2: QDA
+```{python}
+qda_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", QuadraticDiscriminantAnalysis())
+])
+
+qda_cv_scores = cross_val_score(qda_model, X, y, cv=5, scoring="accuracy")
+qda_model.fit(X, y)
+qda_cm = confusion_matrix(y, qda_model.predict(X))
+qda_cm
+```
+
+Q3: SVC
+```{python}
+svc_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+
+svc_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+
+svc_grid = GridSearchCV(svc_model, svc_param_grid, cv=5, scoring="accuracy")
+svc_grid.fit(X, y)
+svc_cm = confusion_matrix(y, svc_grid.predict(X))
+svc_cm
+```
+
+Q4: SVM
+```{python}
+svm_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC(kernel="poly"))
+])
+
+svm_param_grid = {
+    "model__C": [0.1, 1, 10],
+    "model__degree": [2, 3, 4],
+    "model__gamma": ["scale", "auto"]
+}
+
+svm_grid = GridSearchCV(svm_model, svm_param_grid, cv=5, scoring="accuracy")
+svm_grid.fit(X, y)
+svm_cm = confusion_matrix(y, svm_grid.predict(X))
+svm_cm
+```
+
+Part Two: Natural Multiclass
+Now use the full dataset, including the Hybrid strains.
+
+Q1
+Fit a decision tree, plot the final fit, and interpret the results.
+```{python}
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+df_multi = df.dropna()
+X = df_multi.drop(["Strain", "Type", "Rating", "Effects", "Flavor"], axis=1)
+y = df_multi["Type"]
+
+dt_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", DecisionTreeClassifier(random_state=42, max_depth=4))
+])
+
+dt_model.fit(X, y)
+plot_tree(dt_model.named_steps["model"], feature_names=X.columns, filled=True, class_names=["hybrid", "indica", "sativa"])
+```
+
+The tree first splits on Sleepy where strains with Sleepy ≤ 0.367 go left while strains with Sleepy > 0.367 go right. In the second split, on the left branch Energetic becomes the splitting factor where strains with Energetic ≤ 0.481 go left and strains with Energetic > 0.481 go right. On the right branch Citrus becomes the splitting factor where strains with Citrus ≤ 0.609 go left and strains with Citrus > 0.609 go right.
+
+Q2
+Repeat the analyses from Part One for LDA, QDA, and KNN.
+```{python}
+from sklearn.neighbors import KNeighborsClassifier
+lda_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LinearDiscriminantAnalysis())
+])
+
+lda_cv_scores = cross_val_score(lda_model, X, y, cv=5, scoring="accuracy")
+lda_model.fit(X, y)
+lda_cm = confusion_matrix(y, lda_model.predict(X))
+
+qda_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", QuadraticDiscriminantAnalysis())
+])
+
+qda_cv_scores = cross_val_score(qda_model, X, y, cv=5, scoring="accuracy")
+qda_model.fit(X, y)
+qda_cm = confusion_matrix(y, qda_model.predict(X))
+
+knn_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", KNeighborsClassifier())
+])
+
+knn_param_grid = {
+    "model__n_neighbors": [3, 5, 7, 9, 11, 15, 20]
+}
+
+knn_grid = GridSearchCV(knn_model, knn_param_grid, cv=5, scoring="accuracy")
+knn_grid.fit(X, y)
+knn_cm = confusion_matrix(y, knn_grid.predict(X))
+
+lda_cm, qda_cm, knn_cm
+```
+
+Q3
+Were your metrics better or worse than in Part One? Why? Which categories were most likely to get mixed up, according to the confusion matrices? Why?
+Metrics were worse than in Part One.
+Binary classification, 2 classes, is less complex than multiclass, 3 classes.
+
+Part Three: Multiclass from Binary
+Consider two models designed for binary classification: SVC and Logistic Regression.
+
+Q1
+Fit and report metrics for OvR versions of the models. That is, for each of the two model types, create three models:
+Indica vs. Not Indica
+Sativa vs. Not Sativa
+Hybrid vs. Not Hybrid
+
+```{python}
+from sklearn.linear_model import LogisticRegression
+X = df_multi.drop(["Strain", "Type", "Rating", "Effects", "Flavor"], axis=1)
+y = df_multi["Type"]
+y_indica = (y == "indica") * 1
+y_sativa = (y == "sativa") * 1
+y_hybrid = (y == "hybrid") * 1
+
+svc_indica_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+svc_indica_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+svc_indica_grid = GridSearchCV(svc_indica_model, svc_indica_param_grid, cv=5, scoring="accuracy")
+svc_indica_grid.fit(X, y_indica)
+svc_indica_cm = confusion_matrix(y_indica, svc_indica_grid.predict(X))
+
+svc_sativa_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+svc_sativa_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+svc_sativa_grid = GridSearchCV(svc_sativa_model, svc_sativa_param_grid, cv=5, scoring="accuracy")
+svc_sativa_grid.fit(X, y_sativa)
+svc_sativa_cm = confusion_matrix(y_sativa, svc_sativa_grid.predict(X))
+
+svc_hybrid_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+svc_hybrid_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+svc_hybrid_grid = GridSearchCV(svc_hybrid_model, svc_hybrid_param_grid, cv=5, scoring="accuracy")
+svc_hybrid_grid.fit(X, y_hybrid)
+svc_hybrid_cm = confusion_matrix(y_hybrid, svc_hybrid_grid.predict(X))
+
+lr_indica_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000))
+])
+lr_indica_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10, 100]
+}
+lr_indica_grid = GridSearchCV(lr_indica_model, lr_indica_param_grid, cv=5, scoring="accuracy")
+lr_indica_grid.fit(X, y_indica)
+lr_indica_cm = confusion_matrix(y_indica, lr_indica_grid.predict(X))
+
+lr_sativa_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000))
+])
+lr_sativa_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10, 100]
+}
+lr_sativa_grid = GridSearchCV(lr_sativa_model, lr_sativa_param_grid, cv=5, scoring="accuracy")
+lr_sativa_grid.fit(X, y_sativa)
+lr_sativa_cm = confusion_matrix(y_sativa, lr_sativa_grid.predict(X))
+
+lr_hybrid_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000))
+])
+lr_hybrid_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10, 100]
+}
+lr_hybrid_grid = GridSearchCV(lr_hybrid_model, lr_hybrid_param_grid, cv=5, scoring="accuracy")
+lr_hybrid_grid.fit(X, y_hybrid)
+lr_hybrid_cm = confusion_matrix(y_hybrid, lr_hybrid_grid.predict(X))
+
+svc_results = pd.DataFrame({
+    "comparison": ["Indica vs Not Indica", "Sativa vs Not Sativa", "Hybrid vs Not Hybrid"],
+    "cv_accuracy": [svc_indica_grid.best_score_, svc_sativa_grid.best_score_, svc_hybrid_grid.best_score_]
+})
+lr_results = pd.DataFrame({
+    "comparison": ["Indica vs Not Indica", "Sativa vs Not Sativa", "Hybrid vs Not Hybrid"],
+    "cv_accuracy": [lr_indica_grid.best_score_, lr_sativa_grid.best_score_, lr_hybrid_grid.best_score_]
+})
+svc_results, lr_results
+```
+
+Q2
+Which of the six models did the best job distinguishing the target category from the rest? Which did the worst? Does this make intuitive sense?
+Logistic Regression: Sativa vs Not Sativa
+Logistic Regression: Hybrid vs Not Hybrid
+Yes, because Sativa has effects opposite to Indica and hybrids are genetic crosses between Indica and Sativa so an Indica-dominant hybrid looks like Indica and a Sativa-dominant hybrid looks like Sativa
+
+Q3
+Fit and report metrics for OvO versions of the models. That is, for each of the two model types, create three models:
+Indica vs. Sativa
+Indica vs. Hybrid
+Hybrid vs. Sativa
+
+```{python}
+df_indica_sativa = df_multi[(df_multi["Type"] == "indica") | (df_multi["Type"] == "sativa")]
+X_indica_sativa = df_indica_sativa.drop(["Strain", "Type", "Rating", "Effects", "Flavor"], axis=1)
+y_indica_sativa = df_indica_sativa["Type"]
+df_indica_hybrid = df_multi[(df_multi["Type"] == "indica") | (df_multi["Type"] == "hybrid")]
+X_indica_hybrid = df_indica_hybrid.drop(["Strain", "Type", "Rating", "Effects", "Flavor"], axis=1)
+y_indica_hybrid = df_indica_hybrid["Type"]
+df_hybrid_sativa = df_multi[(df_multi["Type"] == "hybrid") | (df_multi["Type"] == "sativa")]
+X_hybrid_sativa = df_hybrid_sativa.drop(["Strain", "Type", "Rating", "Effects", "Flavor"], axis=1)
+y_hybrid_sativa = df_hybrid_sativa["Type"]
+
+svc_indica_sativa_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+svc_indica_sativa_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+svc_indica_sativa_grid = GridSearchCV(svc_indica_sativa_model, svc_indica_sativa_param_grid, cv=5, scoring="accuracy")
+svc_indica_sativa_grid.fit(X_indica_sativa, y_indica_sativa)
+svc_indica_sativa_cm = confusion_matrix(y_indica_sativa, svc_indica_sativa_grid.predict(X_indica_sativa))
+
+svc_indica_hybrid_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+svc_indica_hybrid_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+svc_indica_hybrid_grid = GridSearchCV(svc_indica_hybrid_model, svc_indica_hybrid_param_grid, cv=5, scoring="accuracy")
+svc_indica_hybrid_grid.fit(X_indica_hybrid, y_indica_hybrid)
+svc_indica_hybrid_cm = confusion_matrix(y_indica_hybrid, svc_indica_hybrid_grid.predict(X_indica_hybrid))
+
+svc_hybrid_sativa_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", SVC())
+])
+svc_hybrid_sativa_param_grid = {
+    "model__C": [0.1, 1, 10, 100],
+    "model__gamma": ["scale", "auto", 0.001, 0.01]
+}
+svc_hybrid_sativa_grid = GridSearchCV(svc_hybrid_sativa_model, svc_hybrid_sativa_param_grid, cv=5, scoring="accuracy")
+svc_hybrid_sativa_grid.fit(X_hybrid_sativa, y_hybrid_sativa)
+svc_hybrid_sativa_cm = confusion_matrix(y_hybrid_sativa, svc_hybrid_sativa_grid.predict(X_hybrid_sativa))
+
+lr_indica_sativa_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000))
+])
+lr_indica_sativa_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10, 100]
+}
+lr_indica_sativa_grid = GridSearchCV(lr_indica_sativa_model, lr_indica_sativa_param_grid, cv=5, scoring="accuracy")
+lr_indica_sativa_grid.fit(X_indica_sativa, y_indica_sativa)
+lr_indica_sativa_cm = confusion_matrix(y_indica_sativa, lr_indica_sativa_grid.predict(X_indica_sativa))
+
+lr_indica_hybrid_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000))
+])
+lr_indica_hybrid_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10, 100]
+}
+lr_indica_hybrid_grid = GridSearchCV(lr_indica_hybrid_model, lr_indica_hybrid_param_grid, cv=5, scoring="accuracy")
+lr_indica_hybrid_grid.fit(X_indica_hybrid, y_indica_hybrid)
+lr_indica_hybrid_cm = confusion_matrix(y_indica_hybrid, lr_indica_hybrid_grid.predict(X_indica_hybrid))
+
+lr_hybrid_sativa_model = Pipeline([
+    ("scale", StandardScaler()),
+    ("model", LogisticRegression(max_iter=1000))
+])
+lr_hybrid_sativa_param_grid = {
+    "model__C": [0.01, 0.1, 1, 10, 100]
+}
+lr_hybrid_sativa_grid = GridSearchCV(lr_hybrid_sativa_model, lr_hybrid_sativa_param_grid, cv=5, scoring="accuracy")
+lr_hybrid_sativa_grid.fit(X_hybrid_sativa, y_hybrid_sativa)
+lr_hybrid_sativa_cm = confusion_matrix(y_hybrid_sativa, lr_hybrid_sativa_grid.predict(X_hybrid_sativa))
+
+svc_results = pd.DataFrame({
+    "comparison": ["Indica vs Sativa", "Indica vs Hybrid", "Hybrid vs Sativa"],
+    "cv_accuracy": [svc_indica_sativa_grid.best_score_, svc_indica_hybrid_grid.best_score_, svc_hybrid_sativa_grid.best_score_]
+})
+lr_results = pd.DataFrame({
+    "comparison": ["Indica vs Sativa", "Indica vs Hybrid", "Hybrid vs Sativa"],
+    "cv_accuracy": [lr_indica_sativa_grid.best_score_, lr_indica_hybrid_grid.best_score_, lr_hybrid_sativa_grid.best_score_]
+})
+svc_results, lr_results
+```
+
+Q4
+Which of the six models did the best job distinguishing at differentiating the two groups? Which did the worst? Does this make intuitive sense?
+Logistic Regression: Indica vs Sativa
+SVC: Hybrid vs Sativa
+Yes, because Indica and Sativa characteristics are mutually exclusive and Sativa-dominant hybrids look very similar to pure Sativas
+
+Q5
+Suppose you had simply input the full data, with three classes, into the LogisticRegression function. Would this have automatically taken an “OvO” approach or an “OvR” approach?
+What about for SVC?
+OvR
+OvO
